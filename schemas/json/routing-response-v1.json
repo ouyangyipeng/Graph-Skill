@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://graphskill.dev/schemas/routing-response-v1.json",
+  "title": "Routing Response Schema",
+  "description": "GraphSkill routing response data structure for API output",
+  "type": "object",
+  "required": ["request_id", "selected_skills", "total_tokens", "routing_time_ms"],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Associated request ID"
+    },
+    "selected_skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["skill_uid", "skill_version", "intent_description", "permissions", "score"],
+        "properties": {
+          "skill_uid": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+:[a-z0-9_-]+$",
+            "description": "Skill ID"
+          },
+          "skill_version": {
+            "type": "string",
+            "description": "Skill version"
+          },
+          "intent_description": {
+            "type": "string",
+            "description": "Intent description"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Permission list"
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "description": "Composite score"
+          },
+          "is_required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether this is a required skill (dependency)"
+          },
+          "dependency_depth": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Dependency depth"
+          },
+          "similarity_score": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "description": "Vector similarity score"
+          },
+          "pagerank_score": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "description": "PageRank score"
+          },
+          "reliability_score": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "description": "Reliability score"
+          }
+        }
+      },
+      "description": "Selected skill list"
+    },
+    "total_tokens": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total token count"
+    },
+    "routing_time_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Routing time in milliseconds"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 1.0,
+      "description": "Routing confidence"
+    },
+    "fallback_used": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether fallback mode was used"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata",
+      "properties": {
+        "retrieval_time_ms": {
+          "type": "integer",
+          "description": "Retrieval phase time"
+        },
+        "scoring_time_ms": {
+          "type": "integer",
+          "description": "Scoring phase time"
+        },
+        "pruning_time_ms": {
+          "type": "integer",
+          "description": "Pruning phase time"
+        },
+        "assembly_time_ms": {
+          "type": "integer",
+          "description": "Assembly phase time"
+        },
+        "seed_count": {
+          "type": "integer",
+          "description": "Number of seed skills from vector search"
+        },
+        "expanded_count": {
+          "type": "integer",
+          "description": "Number of expanded skills from graph"
+        },
+        "pruned_count": {
+          "type": "integer",
+          "description": "Number of skills pruned by MWIS"
+        }
+      }
+    }
+  }
+}

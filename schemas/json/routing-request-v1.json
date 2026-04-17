@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://graphskill.dev/schemas/routing-request-v1.json",
+  "title": "Routing Request Schema",
+  "description": "GraphSkill routing request data structure for API input",
+  "type": "object",
+  "required": ["query"],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique request identifier (auto-generated if not provided)"
+    },
+    "query": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 2000,
+      "description": "User query text"
+    },
+    "context": {
+      "type": "object",
+      "description": "Runtime context",
+      "additionalProperties": {
+        "type": ["string", "number", "boolean", "object", "array"]
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "description": "Routing constraints",
+      "properties": {
+        "required_skills": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+:[a-z0-9_-]+$"
+          },
+          "description": "Skills that must be included"
+        },
+        "excluded_skills": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+:[a-z0-9_-]+$"
+          },
+          "description": "Skills that must be excluded"
+        },
+        "skill_categories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Skill category filters"
+        },
+        "min_reliability": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.5,
+          "description": "Minimum reliability threshold"
+        },
+        "max_dependency_depth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "description": "Maximum dependency depth"
+        }
+      }
+    },
+    "max_tokens": {
+      "type": "integer",
+      "minimum": 256,
+      "maximum": 32000,
+      "default": 4096,
+      "description": "Maximum token budget"
+    },
+    "tenant_id": {
+      "type": "string",
+      "default": "default",
+      "description": "Tenant identifier"
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Session identifier"
+    },
+    "user_id": {
+      "type": "string",
+      "description": "User identifier"
+    }
+  }
+}

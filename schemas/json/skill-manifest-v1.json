@@ -1,0 +1,168 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://graphskill.dev/schemas/skill-manifest-v1.json",
+  "title": "Skill Manifest Schema",
+  "description": "GraphSkill skill manifest metadata specification for SKILL.md YAML frontmatter",
+  "type": "object",
+  "required": ["skill_id", "version", "intent_description", "permissions"],
+  "additionalProperties": false,
+  "properties": {
+    "skill_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+:[a-z0-9_-]+$",
+      "description": "Global unique skill identifier, format: namespace:action",
+      "examples": ["git:commit_changes", "db:query_postgres", "fs:read_file"]
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9]+)?$",
+      "description": "Semantic version number (SemVer 2.0.0)",
+      "examples": ["1.0.0", "2.1.3-beta", "0.5.0-alpha.1"]
+    },
+    "intent_description": {
+      "type": "string",
+      "minLength": 50,
+      "maxLength": 500,
+      "description": "LLM-oriented intent description for embedding generation",
+      "examples": ["Execute Git commit operation, committing current working directory changes to the local repository. Requires Git user information to be configured first."]
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z]+:[a-z]+(:[a-zA-Z0-9_/-]+)?$"
+      },
+      "minItems": 1,
+      "description": "Fine-grained permission declaration list",
+      "examples": [
+        ["fs:read:/tmp", "fs:write:/tmp", "net:github.com"],
+        ["db:query:postgres", "db:execute:mysql"]
+      ]
+    },
+    "topology_hints": {
+      "type": "object",
+      "description": "Human-declared topology relationship hints",
+      "additionalProperties": false,
+      "properties": {
+        "requires": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+:[a-z0-9_-]+$"
+          },
+          "description": "Skills that this skill depends on (hard dependency)"
+        },
+        "conflicts_with": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+:[a-z0-9_-]+$"
+          },
+          "description": "Skills that conflict with this skill (cannot coexist)"
+        },
+        "enhances": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+:[a-z0-9_-]+$"
+          },
+          "description": "Skills that enhance this skill's success rate (soft dependency)"
+        },
+        "substitutes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+:[a-z0-9_-]+$"
+          },
+          "description": "Skills that can substitute this skill (functional alternatives)"
+        }
+      }
+    },
+    "trigger_conditions": {
+      "type": "object",
+      "description": "Trigger precondition assertions",
+      "properties": {
+        "env_vars": {
+          "type": "object",
+          "description": "Required environment variables",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "file_exists": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Required file paths that must exist"
+        },
+        "service_available": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Required services that must be available"
+        },
+        "min_version": {
+          "type": "object",
+          "description": "Minimum version requirements",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+\\.\\d+$"
+          }
+        }
+      }
+    },
+    "author": {
+      "type": "string",
+      "maxLength": 100,
+      "description": "Skill author identifier"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Skill creation timestamp (ISO 8601)"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Skill last update timestamp (ISO 8601)"
+    },
+    "deprecated": {
+      "type": "boolean",
+      "default": false,
+      "description": "Soft delete flag"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 50
+      },
+      "description": "Classification tags for filtering"
+    },
+    "documentation_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "External documentation URL"
+    },
+    "examples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "input": {
+            "type": "object"
+          },
+          "output": {
+            "type": "object"
+          }
+        }
+      },
+      "description": "Usage examples"
+    }
+  }
+}
