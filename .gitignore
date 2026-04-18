@@ -179,15 +179,21 @@ credentials/
 logs/
 *.log
 
-# Database data (local)
-data/
-neo4j-data/
-milvus-data/
-redis-data/
-kafka-data/
+# Database runtime data (local, not for git)
+data/datasets/
+data/neo4j-data/
+data/milvus-data/
+data/redis-data/
+data/kafka-data/
 
-# Skill files (local development)
-skills/
+# Keep trackable experiment data
+!data/skills/
+!data/experiment_results/
+!data/performance_results/
+!data/reports/
+
+# Ignore nohup logs in experiment results
+data/experiment_results/nohup*.log
 
 # Temporary files
 tmp/
