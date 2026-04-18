@@ -379,6 +379,141 @@ class TestHybridRetriever:
         assert config_node.edge_type == "REQUIRES"
 
     @pytest.mark.asyncio
+    async def test_similarity_threshold_fallback_returns_seeds_when_all_filtered(
+        self,
+    ) -> None:
+        """VR-First guarantee: when similarity_threshold filters out ALL candidates,
+        fallback to returning top_k seeds WITHOUT threshold.
+
+        This is the critical bug fix: if threshold eliminates all seeds, the
+        GS ≥ VR guarantee is violated. The fallback ensures seeds are always
+        available as the Vector-RAG baseline.
+        """
+        # Create hits with low similarity (all below threshold 0.3)
+        # distance 0.8 → similarity = 1 - 0.8 = 0.2 (below 0.3)
+        low_sim_hits = [
+            {"id": "django:form_validation", "distance": 0.8},  # sim=0.2
+            {"id": "django:migration_signals", "distance": 0.85},  # sim=0.15
+            {"id": "test:fix_failing", "distance": 0.75},  # sim=0.25
+        ]
+
+        # Provide node properties for these low-sim skills so fallback can find them
+        low_sim_nodes = {
+            "django:form_validation": {
+                "uid": "django:form_validation",
+                "version": "1.0.0",
+                "intent_description": "Validate form data in Django web applications.",
+                "permissions": ["fs:read:/tmp"],
+                "execution_success_rate": 0.85,
+                "is_deprecated": False,
+            },
+            "django:migration_signals": {
+                "uid": "django:migration_signals",
+                "version": "1.0.0",
+                "intent_description": "Handle Django database migration signals.",
+                "permissions": ["fs:read:/tmp"],
+                "execution_success_rate": 0.80,
+                "is_deprecated": False,
+            },
+            "test:fix_failing": {
+                "uid": "test:fix_failing",
+                "version": "1.0.0",
+                "intent_description": "Fix failing unit tests by analyzing error output.",
+                "permissions": ["fs:read:/tmp"],
+                "execution_success_rate": 0.90,
+                "is_deprecated": False,
+            },
+        }
+
+        vector_store = _make_mock_vector_store(hits=low_sim_hits)
+        graph_store = _make_mock_graph_store(nodes=low_sim_nodes, neighbors={})
+
+        retriever = HybridRetriever(
+            vector_store=vector_store,
+            graph_store=graph_store,
+            top_k=5,
+            expansion_depth=1,
+            similarity_threshold=0.3,  # All hits are below this
+        )
+
+        query_vector = np.random.randn(384).astype(np.float32)
+        pool, _ = await retriever.retrieve(query_vector)
+
+        # Despite all similarities being < 0.3, seeds MUST be present
+        # (VR-First fallback guarantee)
+        seeds = pool.get_seed_nodes()
+        assert len(seeds) > 0, (
+            "VR-First guarantee violated: similarity_threshold filtered out "
+            "all seeds without fallback. Seeds MUST always be available."
+        )
+        # Seeds should include the highest-similarity results
+        # even if they're below threshold
+        seed_ids = [s.skill_id for s in seeds]
+        assert "test:fix_failing" in seed_ids  # sim=0.25 (highest)
+
+    @pytest.mark.asyncio
+    async def test_similarity_threshold_normal_filtering_works(self) -> None:
+        """When some hits pass threshold, only those should be returned (normal case)."""
+        # Mix of above and below threshold
+        mixed_hits = [
+            {"id": "git:commit", "distance": 0.1},  # sim=0.9 (above 0.3)
+            {"id": "git:push", "distance": 0.2},  # sim=0.8 (above 0.3)
+            {"id": "django:form_validation", "distance": 0.8},  # sim=0.2 (below 0.3)
+        ]
+
+        # Need node properties for all hits
+        mixed_nodes = {
+            "git:commit": {
+                "uid": "git:commit",
+                "version": "1.0.0",
+                "intent_description": "Execute Git commit operation.",
+                "permissions": ["fs:read:/tmp", "fs:write:/tmp"],
+                "execution_success_rate": 0.95,
+                "is_deprecated": False,
+            },
+            "git:push": {
+                "uid": "git:push",
+                "version": "1.0.0",
+                "intent_description": "Push local commits to remote Git repository.",
+                "permissions": ["net:github.com"],
+                "execution_success_rate": 0.90,
+                "is_deprecated": False,
+            },
+            "django:form_validation": {
+                "uid": "django:form_validation",
+                "version": "1.0.0",
+                "intent_description": "Validate form data in Django.",
+                "permissions": ["fs:read:/tmp"],
+                "execution_success_rate": 0.85,
+                "is_deprecated": False,
+            },
+        }
+
+        vector_store = _make_mock_vector_store(hits=mixed_hits)
+        graph_store = _make_mock_graph_store(
+            nodes=mixed_nodes,
+            neighbors={"git:commit": {"nodes": [{"uid": "git:config", "edge_type": "REQUIRES"}], "total_count": 1}},
+        )
+
+        retriever = HybridRetriever(
+            vector_store=vector_store,
+            graph_store=graph_store,
+            top_k=5,
+            expansion_depth=1,
+            similarity_threshold=0.3,
+        )
+
+        query_vector = np.random.randn(384).astype(np.float32)
+        pool, _ = await retriever.retrieve(query_vector)
+
+        seeds = pool.get_seed_nodes()
+        seed_ids = [s.skill_id for s in seeds]
+        # Only above-threshold hits should be seeds
+        assert "git:commit" in seed_ids
+        assert "git:push" in seed_ids
+        assert "django:form_validation" not in seed_ids
+
+    @pytest.mark.asyncio
     async def test_edge_type_list_normalization(self) -> None:
         """Test that list-form edge_type from Neo4j variable-length paths is normalized."""
         vector_store = _make_mock_vector_store(hits=[

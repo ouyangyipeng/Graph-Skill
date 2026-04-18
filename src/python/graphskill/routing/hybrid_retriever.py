@@ -132,6 +132,11 @@ class HybridRetriever:
 
         Over-retrieves (2x) then filters deprecated nodes and
         low-similarity results before returning top_k.
+
+        VR-First guarantee: seed nodes MUST always be available as the
+        Vector-RAG baseline. If similarity_threshold filters out all
+        candidates, we fall back to returning top_k without threshold
+        filtering — ensuring the GS ≥ VR guarantee is never violated.
         """
         try:
             search_result = await self.vector_store.search(
@@ -140,8 +145,8 @@ class HybridRetriever:
                 output_fields=["id"],
             )
 
-            seed_nodes: list[SeedNode] = []
-
+            # Collect ALL raw hits with computed similarity (pre-threshold)
+            raw_hits: list[dict] = []
             for hit in search_result.results:
                 skill_id = hit.get("id", "")
                 distance = hit.get("distance", 0.0)
@@ -150,9 +155,20 @@ class HybridRetriever:
                 # lower is more similar for L2, but for COSINE it's
                 # actually similarity score. Convert to [0, 1].
                 similarity = max(0.0, min(1.0, 1.0 - distance))
+                raw_hits.append({"skill_id": skill_id, "similarity": similarity})
+
+            # Sort by similarity descending (highest first)
+            raw_hits.sort(key=lambda h: h["similarity"], reverse=True)
+
+            # Phase A: Try to build seed_nodes with similarity_threshold
+            seed_nodes: list[SeedNode] = []
+            for hit_info in raw_hits:
+                similarity = hit_info["similarity"]
 
                 if similarity < self.similarity_threshold:
                     continue
+
+                skill_id = hit_info["skill_id"]
 
                 # Fetch node properties from graph DB
                 node_props = await self._get_skill_node(skill_id)
@@ -166,7 +182,7 @@ class HybridRetriever:
                 seed_nodes.append(
                     SeedNode(
                         skill_id=skill_id,
-                        vector_id=str(hit.get("id", "")),
+                        vector_id=skill_id,
                         similarity=similarity,
                         node_properties=node_props,
                         expansion_path=[skill_id],
@@ -175,6 +191,39 @@ class HybridRetriever:
 
                 if len(seed_nodes) >= top_k:
                     break
+
+            # Phase B: VR-First fallback guarantee
+            # If threshold filtering eliminated ALL candidates, return
+            # top_k seeds WITHOUT threshold — ensuring GS ≥ VR baseline.
+            if len(seed_nodes) == 0 and len(raw_hits) > 0:
+                logger.warning(
+                    f"Similarity threshold ({self.similarity_threshold}) filtered out "
+                    f"all {len(raw_hits)} candidates. Falling back to top_k without "
+                    f"threshold to preserve VR-First guarantee."
+                )
+                for hit_info in raw_hits:
+                    skill_id = hit_info["skill_id"]
+                    similarity = hit_info["similarity"]
+
+                    node_props = await self._get_skill_node(skill_id)
+                    if node_props is None:
+                        continue
+
+                    if self.filter_deprecated and node_props.get("is_deprecated", False):
+                        continue
+
+                    seed_nodes.append(
+                        SeedNode(
+                            skill_id=skill_id,
+                            vector_id=skill_id,
+                            similarity=similarity,
+                            node_properties=node_props,
+                            expansion_path=[skill_id],
+                        )
+                    )
+
+                    if len(seed_nodes) >= top_k:
+                        break
 
             return seed_nodes
 
