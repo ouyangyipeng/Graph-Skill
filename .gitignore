@@ -186,14 +186,8 @@ data/milvus-data/
 data/redis-data/
 data/kafka-data/
 
-# Keep trackable experiment data
-!data/skills/
-!data/experiment_results/
-!data/performance_results/
-!data/reports/
-
-# Ignore nohup logs in experiment results
-data/experiment_results/nohup*.log
+# All experiment data and data directory (not for public)
+data/
 
 # Temporary files
 tmp/
@@ -220,6 +214,30 @@ temp/
 # Test artifacts
 test-results/
 .benchmarks/
+
+# ============================================
+# LaTeX
+# ============================================
+
+# LaTeX compilation artifacts
+*.aux
+*.bbl
+*.blg
+*.out
+*.log
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# ============================================
+# GraphSkill Experiment Data
+# ============================================
+
+# Aggregated experiment data (not for public)
+graphskill_experiment_data/
+
+# Experiment JSON files in root directory
+graphskill-*.json
 
 # ============================================
 # Documentation
