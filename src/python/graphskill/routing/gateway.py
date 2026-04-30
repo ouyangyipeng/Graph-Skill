@@ -235,7 +235,8 @@ class RoutingGateway:
 
             # Build enhanced response
             selected_skills = self._build_selected_skills(
-                enhancement_result.final_ids, candidate_pool, assembled_context
+                enhancement_result.final_ids, candidate_pool, assembled_context,
+                vr_seed_ids=set(vr_seed_ids),
             )
 
             if not selected_skills:
@@ -658,8 +659,25 @@ class RoutingGateway:
         pruned_ids: list[str],
         candidate_pool: CandidatePool,
         assembled_context: AssembledContext,
+        vr_seed_ids: Optional[set[str]] = None,
     ) -> list[SelectedSkill]:
-        """Build SelectedSkill list from pruned IDs and candidate pool."""
+        """Build SelectedSkill list from pruned IDs and candidate pool.
+
+        CRITICAL: GS returns at most top_k skills (same count as VR baseline).
+        GS's value is "selecting more accurate top-k from a larger candidate pool",
+        NOT "injecting more low-quality skills". Capping at top_k ensures:
+        - Same skill count as VR baseline → fair token budget comparison
+        - Only the highest composite-score skills are kept → GS picks better top-k
+        - If expanded nodes have higher score than low-ranked VR seeds → GS > VR
+        - If expanded nodes don't improve → GS ≈ VR (same seeds, same count)
+
+        VR SEED PROTECTION in top-k cap:
+        An expanded node can only replace a VR seed if it has BOTH:
+        1. Higher composite score (graph enhancement value)
+        2. Higher similarity_score (query relevance)
+        This ensures GS ≥ VR guarantee: expanded nodes with inflated pagerank
+        but low similarity cannot push out genuinely query-relevant VR seeds.
+        """
         included_set = set(assembled_context.skills)
         selected: list[SelectedSkill] = []
 
@@ -692,6 +710,60 @@ class RoutingGateway:
                     pagerank_score=pr_clamped,
                     reliability_score=rel_clamped,
                 )
+            )
+
+        # CRITICAL: Cap at top_k with VR seed protection.
+        # Sort by composite score (highest first), then truncate.
+        # But VR seeds are protected: an expanded node can only replace a VR seed
+        # if it has BOTH higher composite score AND higher similarity.
+        if len(selected) > self.top_k:
+            # Sort by composite score
+            selected.sort(key=lambda s: s.score, reverse=True)
+
+            # Apply VR seed protection: ensure VR seeds are not pushed out
+            # by expanded nodes with high pagerank but low similarity
+            if vr_seed_ids:
+                vr_seed_set = set(vr_seed_ids)
+                top_k_selected = selected[: self.top_k]
+                pruned_out = selected[self.top_k:]
+
+                # Check if any VR seed was pushed out
+                pushed_out_vr_seeds = [
+                    s for s in pruned_out if s.skill_uid in vr_seed_set
+                ]
+
+                if pushed_out_vr_seeds:
+                    # For each pushed-out VR seed, check if any expanded node
+                    # in top_k has lower similarity than the VR seed
+                    for vr_skill in pushed_out_vr_seeds:
+                        # Find expanded nodes in top_k with lower similarity
+                        # than this VR seed (they shouldn't have replaced it)
+                        worse_expanded = [
+                            s for s in top_k_selected
+                            if s.skill_uid not in vr_seed_set
+                            and s.similarity_score < vr_skill.similarity_score
+                        ]
+
+                        if worse_expanded:
+                            # Replace the lowest-sim expanded node with this VR seed
+                            worst = min(worse_expanded, key=lambda s: s.similarity_score)
+                            top_k_selected.remove(worst)
+                            top_k_selected.append(vr_skill)
+                            logger.info(
+                                f"VR seed protection: restored {vr_skill.skill_uid} "
+                                f"(sim={vr_skill.similarity_score:.3f}) over expanded "
+                                f"{worst.skill_uid} (sim={worst.similarity_score:.3f})"
+                            )
+
+                    selected = top_k_selected
+                else:
+                    selected = top_k_selected
+            else:
+                selected = selected[: self.top_k]
+
+            logger.info(
+                f"Top-k cap applied: {len(pruned_ids)} pruned → {len(selected)} selected "
+                f"(graph enhancement provides better selection, not more skills)"
             )
 
         return selected
