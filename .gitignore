@@ -179,17 +179,34 @@ credentials/
 logs/
 *.log
 
-# Database runtime data (local, not for git)
-data/datasets/
-data/neo4j-data/
-data/milvus-data/
-data/redis-data/
-data/kafka-data/
+# ============================================
+# SENSITIVE — 禁止上传到 GitHub
+# ============================================
 
-# All experiment data and data directory (not for public)
+# 实验数据
 data/
 
+# 配置文件（含 API 密钥等敏感信息）
+configs/
+
+# 论文（未发表前禁止公开）
+paper/
+
+# 实验计划与内部文档
+plans/
+
+# 实验脚本
+scripts/
+
+# 项目内部文档
+init_doc.md
+相关论文.md
+论文整体构想.md
+ROADMAP.md
+
+# ============================================
 # Temporary files
+# ============================================
 tmp/
 temp/
 
