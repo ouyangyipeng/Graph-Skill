@@ -1,6 +1,6 @@
-<mxfile host="Electron">
+<mxfile host="app.diagrams.net">
   <diagram name="第 1 页" id="c3dGjHks2qUcNk0V_3_n">
-    <mxGraphModel dx="1413" dy="974" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="1968" dy="1226" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -290,7 +290,7 @@
           <mxGeometry height="30" width="220" x="594" y="439" as="geometry" />
         </mxCell>
         <mxCell id="L1eVJ4u-mPAcvspaRrYh-163" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;b&gt;Assembled Skill Context(XML)&lt;/b&gt;&lt;div&gt;&lt;b&gt;Injected into LLM agent&lt;/b&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="30" width="180" x="1580" y="890" as="geometry" />
+          <mxGeometry height="30" width="180" x="255.75" y="780" as="geometry" />
         </mxCell>
         <mxCell id="L1eVJ4u-mPAcvspaRrYh-164" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#232F3D;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.document;" value="" vertex="1">
           <mxGeometry height="40" width="29.22" x="612.78" y="484" as="geometry" />
